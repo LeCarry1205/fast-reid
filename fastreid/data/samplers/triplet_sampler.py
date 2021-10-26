@@ -232,29 +232,41 @@ class NaiveIdentitySampler(Sampler):
         yield from itertools.islice(self._infinite_indices(), start, None, self._world_size)
 
     def _infinite_indices(self):
+        # 设定随机种子
         np.random.seed(self._seed)
         while True:
+            # 获得有效的身份ID，这里的self.pids已经进行过更新，包含多个数据集的ID
             avl_pids = copy.deepcopy(self.pids)
+            # 保存一个batch的身份ID的索引
             batch_idxs_dict = {}
 
+            # 保存一个batch的indx,该indx主要传给CommDataset的__getitem__函数
             batch_indices = []
+            # 如果有效的ID数目大于self.num_pids_per_batch
             while len(avl_pids) >= self.num_pids_per_batch:
+                # 随机从avai_pids中选择self.num_pids_per_batch个身份id
                 selected_pids = np.random.choice(avl_pids, self.num_pids_per_batch, replace=False).tolist()
+                # 循环对每个身份ID进行处理
                 for pid in selected_pids:
                     # Register pid in batch_idxs_dict if not
+                    # 如果pid这个ID在当前batch没有被采样过
                     if pid not in batch_idxs_dict:
+                        # 获得pid这个身份ID对应所有图片的序列号
                         idxs = copy.deepcopy(self.pid_index[pid])
+                        # 如果该身份ID图像的总数低于self.num_instances（论文中的K），则使用重复采样的方式
                         if len(idxs) < self.num_instances:
                             idxs = np.random.choice(idxs, size=self.num_instances, replace=True).tolist()
+                        # 随机进行采样
                         np.random.shuffle(idxs)
                         batch_idxs_dict[pid] = idxs
-
+                    # 如果该身份已经被采集过了（也就是selected_pids存在两个相同的ID），获得该ID对应所有图像的序列号
                     avl_idxs = batch_idxs_dict[pid]
+                    # 如果该身份已经被采集过了（也就是selected_pids存在两个相同的ID），获得该ID对应所有图像的序列号
                     for _ in range(self.num_instances):
                         batch_indices.append(avl_idxs.pop(0))
-
+                    # 如果len(avai_idxs)小于self.num_instances则移除该ID，以及对应的图片
                     if len(avl_idxs) < self.num_instances: avl_pids.remove(pid)
-
+                # 检测batch_indices是否合格
                 if len(batch_indices) == self.batch_size:
                     yield from reorder_index(batch_indices, self._world_size)
                     batch_indices = []

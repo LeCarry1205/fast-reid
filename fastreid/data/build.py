@@ -34,16 +34,27 @@ def _train_loader_from_config(cfg, *, train_set=None, transforms=None, sampler=N
     if train_set is None:
         train_items = list()
         for d in cfg.DATASETS.NAMES:
+            # 根据数据集名称，创建对应数据集迭代的类，本人调试为类 fastreid.data.datasets.market1501.Market1501对象
             data = DATASET_REGISTRY.get(d)(root=_root, **kwargs)
+            # 如果为主线程，则显示训练信息
             if comm.is_main_process():
                 data.show_train()
+            # data.train包含的都是训练数据的信息，示例部分数据如下：
+            # 图片路径                                                                      身份ID          摄像头编号
+            # 'datasets/Market-1501-v15.09.15/bounding_box_train/0309_c3s2_037562_02.jpg', 'market1501_309', 2
+            # 'datasets/Market-1501-v15.09.15/bounding_box_train/0208_c1s1_045426_08.jpg', 'market1501_208', 0
+            # 要知道具体的过程，需要查看类fastreid.data.datasets.market1501.Market1501
             train_items.extend(data.train)
 
+        # CommDataset继承于Dataset，并且其中实现了__getitem__函数，
+        # train_items为一个列表，还包含了所有训练数据的信息
         train_set = CommDataset(train_items, transforms, relabel=True)
 
     if sampler is None:
         sampler_name = cfg.DATALOADER.SAMPLER_TRAIN
+        # 获得实例数目（每个身份采集多少张图片，论文中的K）
         num_instance = cfg.DATALOADER.NUM_INSTANCE
+        # 获得每个GPU的batch_size
         mini_batch_size = cfg.SOLVER.IMS_PER_BATCH // comm.get_world_size()
 
         logger = logging.getLogger(__name__)
@@ -84,6 +95,7 @@ def build_reid_train_loader(
 
     mini_batch_size = total_batch_size // comm.get_world_size()
 
+    # 构建batch数据迭代采样器，指定加载数据的线程数目等
     batch_sampler = torch.utils.data.sampler.BatchSampler(sampler, mini_batch_size, True)
 
     train_loader = DataLoaderX(

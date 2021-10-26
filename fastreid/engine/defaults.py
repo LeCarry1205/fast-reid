@@ -240,6 +240,7 @@ class DefaultTrainer(TrainerBase):
 
     def resume_or_load(self, resume=True):
         """
+        如果resume==True表示接着之前的迭代次数训练，否则从0开始训练
         If `resume==True` and `cfg.OUTPUT_DIR` contains the last checkpoint (defined by
         a `last_checkpoint` file), resume from the file. Resuming means loading all
         available states (eg. optimizer and scheduler) and update iteration counter
@@ -316,6 +317,7 @@ class DefaultTrainer(TrainerBase):
 
     def build_writers(self):
         """
+        主要用于写入log日志等等
         Build a list of writers to be used. By default it contains
         writers that write metrics to the screen,
         a json file, and a tensorboard event file respectively.
@@ -359,6 +361,7 @@ class DefaultTrainer(TrainerBase):
     @classmethod
     def build_model(cls, cfg):
         """
+        根据配置信息cfg构建模型
         Returns:
             torch.nn.Module:
         It now calls :func:`fastreid.modeling.build_model`.
@@ -382,6 +385,7 @@ class DefaultTrainer(TrainerBase):
     @classmethod
     def build_lr_scheduler(cls, cfg, optimizer, iters_per_epoch):
         """
+        根据配置参数指定学习率衰减策略
         It now calls :func:`fastreid.solver.build_lr_scheduler`.
         Overwrite it if you'd like a different scheduler.
         """
@@ -411,12 +415,16 @@ class DefaultTrainer(TrainerBase):
 
     @classmethod
     def build_evaluator(cls, cfg, dataset_name, output_dir=None):
+        """
+        构建评估器
+        """
         data_loader, num_query = cls.build_test_loader(cfg, dataset_name)
         return data_loader, ReidEvaluator(cfg, num_query, output_dir)
 
     @classmethod
     def test(cls, cfg, model):
         """
+        对模型进行评估
         Args:
             cfg (CfgNode):
             model (nn.Module):
@@ -457,6 +465,7 @@ class DefaultTrainer(TrainerBase):
     @staticmethod
     def auto_scale_hyperparams(cfg, num_classes):
         r"""
+        根据传入的cfg，推算出一些cfg配置参数，如总迭代次数等等
         This is used for auto-computation actual training iterations,
         because some hyper-param, such as MAX_ITER, means training epochs rather than iters,
         so we need to convert specific hyper-param to training iterations.
